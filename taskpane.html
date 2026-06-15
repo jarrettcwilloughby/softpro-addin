@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SoftPro Field Extractor</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    :root {
+      --brand:       #1a3a5c;
+      --brand-light: #2a5a8c;
+      --accent:      #e8a020;
+      --success:     #2e7d32;
+      --warn:        #c62828;
+      --surface:     #f4f6f9;
+      --card:        #ffffff;
+      --border:      #d0d8e4;
+      --text:        #1a2332;
+      --muted:       #5a6a7a;
+      --radius:      6px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      background: var(--surface);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--brand);
+      color: #fff;
+      padding: 11px 14px 9px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 14px; font-weight: 700; letter-spacing: .2px; }
+    header p  { font-size: 10px; opacity: .7; margin-top: 2px; }
+
+    /* ── Scrollable body ── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ── API key card ── */
+    #api-card {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: var(--radius);
+      padding: 9px 11px;
+    }
+    #api-card label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #5a4000;
+      margin-bottom: 5px;
+    }
+    #api-card label span { font-weight: 400; font-size: 10px; }
+    #api-key-input {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+      background: #fffdf5;
+    }
+    #api-saved-note {
+      font-size: 10px;
+      color: #2e7d32;
+      margin-top: 4px;
+      display: none;
+    }
+    #api-hint {
+      font-size: 10px;
+      color: #7a6000;
+      margin-top: 4px;
+    }
+
+    /* ── Extract button ── */
+    #extract-btn {
+      width: 100%;
+      padding: 10px;
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .2px;
+      transition: background .15s;
+    }
+    #extract-btn:hover   { background: var(--brand-light); }
+    #extract-btn:disabled { background: #9aadbe; cursor: not-allowed; }
+
+    /* ── Status ── */
+    #status {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      min-height: 15px;
+    }
+    #status.error { color: var(--warn); }
+    #status.ok    { color: var(--success); }
+
+    /* ── Progress bar ── */
+    #progress-wrap { display: none; }
+    #progress-wrap.visible { display: block; }
+    .prog-bg {
+      background: var(--border);
+      border-radius: 10px;
+      height: 5px;
+      overflow: hidden;
+    }
+    .prog-fill {
+      height: 100%;
+      background: var(--brand);
+      width: 0%;
+      border-radius: 10px;
+      transition: width .3s ease;
+    }
+    .prog-lbl {
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 3px;
+    }
+
+    /* ── Section cards ── */
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .sec-hdr {
+      background: var(--brand);
+      color: #fff;
+      padding: 6px 11px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .chevron { margin-left: auto; transition: transform .2s; }
+    .sec-hdr.collapsed .chevron { transform: rotate(-90deg); }
+    .sec-body { padding: 7px 9px; display: flex; flex-direction: column; gap: 5px; }
+    .sec-body.hidden { display: none; }
+
+    /* ── Field rows ── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 115px 1fr;
+      align-items: start;
+      gap: 4px;
+    }
+    .field-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      padding-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      line-height: 1.3;
+    }
+    .field-value {
+      font-size: 12px;
+      color: var(--text);
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 3px 6px;
+      min-height: 24px;
+      cursor: pointer;
+      transition: background .12s;
+      word-break: break-word;
+    }
+    .field-value:hover  { background: #eef3f9; }
+    .field-value.missing {
+      color: #b0b8c4;
+      font-style: italic;
+      background: #fafafa;
+      border-style: dashed;
+      cursor: default;
+    }
+    .field-value.copied { background: #e8f5e9; border-color: #a5d6a7; }
+
+    /* ── Ohio banner ── */
+    .ohio-note {
+      background: #e8f4fd;
+      border-left: 3px solid #1565c0;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #1a237e;
+      border-radius: 0 4px 4px 0;
+      line-height: 1.5;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; gap: 6px; }
+    .toolbar button {
+      flex: 1;
+      padding: 7px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .toolbar button:hover { background: #e8edf4; }
+    .toolbar button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: #c47800;
+    }
+    .toolbar button.primary:hover { background: #d08010; }
+
+    /* ── Placeholder ── */
+    #placeholder {
+      text-align: center;
+      color: var(--muted);
+      padding: 28px 16px;
+      font-size: 12px;
+      line-height: 1.8;
+    }
+    #placeholder .icon { font-size: 32px; margin-bottom: 8px; }
+
+    /* ── Source line ── */
+    #source-summary { font-size: 10px; color: var(--muted); text-align: right; }
+
+    /* ── Footer ── */
+    footer {
+      flex-shrink: 0;
+      padding: 5px 12px;
+      font-size: 10px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: var(--card);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚖️ SoftPro Field Extractor</h1>
+  <p>Ohio Title Agency · Purchase Contract Parser</p>
+</header>
+
+<main>
+
+  <!-- API Key -->
+  <div id="api-card">
+    <label for="api-key-input">
+      🔑 Anthropic API Key
+      <span><a href="https://console.anthropic.com" target="_blank" style="color:#c47800;">Get a key ↗</a></span>
+    </label>
+    <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." autocomplete="off"
+           oninput="onApiKeyInput()" />
+    <div id="api-saved-note">✅ Key saved on this computer — won't need to re-enter.</div>
+    <div id="api-hint">Your key is saved locally and sent only to Anthropic's API.</div>
+  </div>
+
+  <!-- Extract button -->
+  <button id="extract-btn" onclick="runExtraction()">
+    📄 Extract SoftPro Fields from This Email
+  </button>
+
+  <!-- Status -->
+  <div id="status">Open a purchase contract email, then click above.</div>
+
+  <!-- Progress -->
+  <div id="progress-wrap">
+    <div class="prog-bg"><div class="prog-fill" id="prog-fill"></div></div>
+    <div class="prog-lbl" id="prog-lbl">Reading email…</div>
+  </div>
+
+  <!-- Placeholder -->
+  <div id="placeholder">
+    <div class="icon">🏠</div>
+    <strong>No data extracted yet.</strong><br/>
+    Select a purchase contract email<br/>and click the button above.
+  </div>
+
+  <!-- Results -->
+  <div id="results" style="display:none;flex-direction:column;gap:8px;">
+
+    <div id="source-summary"></div>
+
+    <div class="toolbar">
+      <button class="primary" onclick="copyAllFields()">📋 Copy All Fields</button>
+      <button onclick="copyAsCSV()">⬇️ Copy as CSV</button>
+    </div>
+
+    <div class="ohio-note">
+      🏛️ <strong>Ohio:</strong> Verify conveyance fee ($4/thousand), dower release,
+      and OSBA title standards before closing.
+    </div>
+
+    <!-- ORDER DETAILS -->
+    <div class="section" id="sec-order">
+      <div class="sec-hdr" onclick="toggleSection('sec-order')">📋 Order Details <span class="chevron">▾</span></div>
+      <div class="sec-body" id="sec-order-body">
+        <div class="field-row"><span class="field-label">File Type</span><span class="field-value" id="f-file-type" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Settlement Date</span><span class="field-value" id="f-settlement-date" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Closing Date</span><span class="field-value" id="f-closing-date" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Possession Date</span><span class="field-value" id="f-possession-date" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Disbursement Date</span><span class="field-value" id="f-disbursement-date" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Sales Price</span><span class="field-value" id="f-sales-price" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Earnest Money</span><span class="field-value" id="f-earnest-money" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">EMD Held By</span><span class="field-value" id="f-emd-holder" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Loan Amount</span><span class="field-value" id="f-loan-amount" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Loan Type</span><span class="field-value" id="f-loan-type" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Interest Rate</span><span class="field-value" id="f-interest-rate" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Loan Term</span><span class="field-value" id="f-loan-term" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Finance Contingency</span><span class="field-value" id="f-finance-contingency" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Inspection Period</span><span class="field-value" id="f-inspection-period" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Personal Property</span><span class="field-value" id="f-personal-property" onclick="copyField(this)">—</span></div>
+      </div>
+    </div>
+
+    <!-- PROPERTY -->
+    <div class="section" id="sec-property">
+      <div class="sec-hdr" onclick="toggleSection('sec-property')">🏠 Property <span class="chevron">▾</span></div>
+      <div class="sec-body" id="sec-property-body">
+        <div class="field-row"><span class="field-label">Street Address</span><span class="field-value" id="f-prop-address" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">City</span><span class="field-value" id="f-prop-city" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">State</span><span class="field-value" id="f-prop-state" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">ZIP</span><span class="field-value" id="f-prop-zip" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">County</span><span class="field-value" id="f-prop-county" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Township</span><span class="field-value" id="f-prop-township" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Parcel / PPN</span><span class="field-value" id="f-parcel-number" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Legal Description</span><span class="field-value" id="f-legal-desc" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Subdivision</span><span class="field-value" id="f-subdivision" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Lot / Block</span><span class="field-value" id="f-lot-block" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Deed Type</span><span class="field-value" id="f-deed-type" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Property Type</span><span class="field-value" id="f-prop-type" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Appraised Value</span><span class="field-value" id="f-appraised-value" onclick="copyField(this)">—</span></div>
+      </div>
+    </div>
+
+    <!-- BUYERS -->
+    <div class="section" id="sec-buyers">
+      <div class="sec-hdr" onclick="toggleSection('sec-buyers')">👤 Buyer(s) <span class="chevron">▾</span></div>
+      <div class="sec-body" id="sec-buyers-body">
+        <div class="field-row"><span class="field-label">Buyer 1 Name</span><span class="field-value" id="f-buyer1-name" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Buyer 1 Address</span><span class="field-value" id="f-buyer1-address" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Buyer 1 Phone</span><span class="field-value" id="f-buyer1-phone" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Buyer 1 Email</span><span class="field-value" id="f-buyer1-email" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Buyer 1 Marital</span><span class="field-value" id="f-buyer1-marital" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Buyer 2 Name</span><span class="field-value" id="f-buyer2-name" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Buyer 2 Address</span><span class="field-value" id="f-buyer2-address" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Buyer 2 Phone</span><span class="field-value" id="f-buyer2-phone" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Buyer 2 Email</span><span class="field-value" id="f-buyer2-email" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Vesting / How Title</span><span class="field-value" id="f-vesting" onclick="copyField(this)">—</span></div>
+      </div>
+    </div>
+
+    <!-- SELLERS -->
+    <div class="section" id="sec-sellers">
+      <div class="sec-hdr" onclick="toggleSection('sec-sellers')">👤 Seller(s) <span class="chevron">▾</span></div>
+      <div class="sec-body" id="sec-sellers-body">
+        <div class="field-row"><span class="field-label">Seller 1 Name</span><span class="field-value" id="f-seller1-name" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Seller 1 Address</span><span class="field-value" id="f-seller1-address" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Seller 1 Phone</span><span class="field-value" id="f-seller1-phone" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Seller 1 Email</span><span class="field-value" id="f-seller1-email" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Seller 2 Name</span><span class="field-value" id="f-seller2-name" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Seller 2 Address</span><span class="field-value" id="f-seller2-address" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Dower Release</span><span class="field-value" id="f-dower-release" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Marital Status</span><span class="field-value" id="f-seller-marital" onclick="copyField(this)">—</span></div>
+      </div>
+    </div>
+
+    <!-- LENDER -->
+    <div class="section" id="sec-lender">
+      <div class="sec-hdr" onclick="toggleSection('sec-lender')">🏦 Lender / Loan <span class="chevron">▾</span></div>
+      <div class="sec-body" id="sec-lender-body">
+        <div class="field-row"><span class="field-label">Lender Name</span><span class="field-value" id="f-lender-name" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Lender Address</span><span class="field-value" id="f-lender-address" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Loan Officer</span><span class="field-value" id="f-loan-officer" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">LO Phone</span><span class="field-value" id="f-loan-officer-phone" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Loan Number</span><span class="field-value" id="f-loan-number" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Mortgage Type</span><span class="field-value" id="f-mortgage-type" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Down Payment</span><span class="field-value" id="f-down-payment" onclick="copyField(this)">—</span></div>
+      </div>
+    </div>
+
+    <!-- AGENTS -->
+    <div class="section" id="sec-agents">
+      <div class="sec-hdr" onclick="toggleSection('sec-agents')">🤝 Real Estate Agents <span class="chevron">▾</span></div>
+      <div class="sec-body" id="sec-agents-body">
+        <div class="field-row"><span class="field-label">Selling Agent</span><span class="field-value" id="f-selling-agent" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Selling Brokerage</span><span class="field-value" id="f-selling-brokerage" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Selling Agent Ph.</span><span class="field-value" id="f-selling-agent-phone" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Selling Agent Em.</span><span class="field-value" id="f-selling-agent-email" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Listing Agent</span><span class="field-value" id="f-listing-agent" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Listing Brokerage</span><span class="field-value" id="f-listing-brokerage" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Listing Agent Ph.</span><span class="field-value" id="f-listing-agent-phone" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Listing Agent Em.</span><span class="field-value" id="f-listing-agent-email" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Commission %</span><span class="field-value" id="f-commission" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Commission Paid By</span><span class="field-value" id="f-commission-paid-by" onclick="copyField(this)">—</span></div>
+      </div>
+    </div>
+
+    <!-- OHIO-SPECIFIC -->
+    <div class="section" id="sec-ohio">
+      <div class="sec-hdr" onclick="toggleSection('sec-ohio')">🏛️ Ohio-Specific Fields <span class="chevron">▾</span></div>
+      <div class="sec-body" id="sec-ohio-body">
+        <div class="field-row"><span class="field-label">OH Conv. Fee</span><span class="field-value" id="f-conv-fee" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Conv. Fee Paid By</span><span class="field-value" id="f-conv-fee-by" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">OH Transfer Tax</span><span class="field-value" id="f-transfer-tax" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Property Disc.</span><span class="field-value" id="f-disclosure-form" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Radon Disc.</span><span class="field-value" id="f-radon" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Lead Paint Disc.</span><span class="field-value" id="f-lead-paint" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">HOA / Condo</span><span class="field-value" id="f-hoa" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">HOA Monthly Fee</span><span class="field-value" id="f-hoa-fee" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Special Assessments</span><span class="field-value" id="f-special-assessments" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Survey Required</span><span class="field-value" id="f-survey" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Closing Cost Credits</span><span class="field-value" id="f-closing-credits" onclick="copyField(this)">—</span></div>
+        <div class="field-row"><span class="field-label">Home Warranty</span><span class="field-value" id="f-home-warranty" onclick="copyField(this)">—</span></div>
+      </div>
+    </div>
+
+    <!-- FLAGS -->
+    <div class="section" id="sec-notes">
+      <div class="sec-hdr" onclick="toggleSection('sec-notes')">📝 Flags &amp; Notes <span class="chevron">▾</span></div>
+      <div class="sec-body" id="sec-notes-body">
+        <div id="f-flags" style="font-size:12px;line-height:1.7;">—</div>
+      </div>
+    </div>
+
+  </div><!-- /results -->
+
+</main>
+
+<footer>Click any field to copy · SoftPro Field Extractor v1.1 · Ohio Title</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   OFFICE.JS INIT
+═══════════════════════════════════════════════════════════════ */
+Office.onReady(function(info) {
+  if (info.host === Office.HostType.Outlook) {
+    loadSavedApiKey();
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   API KEY — save & load from localStorage
+═══════════════════════════════════════════════════════════════ */
+const API_KEY_STORAGE = "softpro_anthropic_key";
+
+function loadSavedApiKey() {
+  try {
+    const saved = localStorage.getItem(API_KEY_STORAGE);
+    if (saved) {
+      document.getElementById("api-key-input").value = saved;
+      document.getElementById("api-saved-note").style.display = "block";
+      document.getElementById("api-hint").style.display = "none";
+    }
+  } catch(e) { /* storage unavailable */ }
+}
+
+function onApiKeyInput() {
+  const val = document.getElementById("api-key-input").value.trim();
+  try {
+    if (val && val.startsWith("sk-ant-")) {
+      localStorage.setItem(API_KEY_STORAGE, val);
+      document.getElementById("api-saved-note").style.display = "block";
+      document.getElementById("api-hint").style.display = "none";
+    } else {
+      localStorage.removeItem(API_KEY_STORAGE);
+      document.getElementById("api-saved-note").style.display = "none";
+      document.getElementById("api-hint").style.display = "block";
+    }
+  } catch(e) { /* storage unavailable */ }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UI HELPERS
+═══════════════════════════════════════════════════════════════ */
+function setStatus(msg, type = "") {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.className = type;
+}
+
+function setProgress(pct, label) {
+  const wrap = document.getElementById("progress-wrap");
+  const fill = document.getElementById("prog-fill");
+  const lbl  = document.getElementById("prog-lbl");
+  if (pct === null) { wrap.classList.remove("visible"); return; }
+  wrap.classList.add("visible");
+  fill.style.width = pct + "%";
+  lbl.textContent  = label || "";
+}
+
+function toggleSection(id) {
+  document.querySelector(`#${id} .sec-hdr`).classList.toggle("collapsed");
+  document.querySelector(`#${id} .sec-body`).classList.toggle("hidden");
+}
+
+function copyField(el) {
+  const val = el.dataset.raw || el.textContent.trim();
+  if (!val || val === "—" || val === "Not found") return;
+  navigator.clipboard.writeText(val).then(() => {
+    el.classList.add("copied");
+    setTimeout(() => el.classList.remove("copied"), 1200);
+  });
+}
+
+function copyAllFields() {
+  const lines = [];
+  document.querySelectorAll(".field-row").forEach(row => {
+    const label = row.querySelector(".field-label")?.textContent?.trim() || "";
+    const valEl = row.querySelector(".field-value");
+    const val   = valEl?.dataset?.raw || valEl?.textContent?.trim() || "";
+    if (val && val !== "—" && !valEl?.classList.contains("missing")) {
+      lines.push(`${label}: ${val}`);
+    }
+  });
+  navigator.clipboard.writeText(lines.join("\n")).then(() =>
+    setStatus("✅ All fields copied to clipboard!", "ok")
+  );
+}
+
+function copyAsCSV() {
+  const rows = ['"Field","Value"'];
+  document.querySelectorAll(".field-row").forEach(row => {
+    const label = row.querySelector(".field-label")?.textContent?.trim() || "";
+    const valEl = row.querySelector(".field-value");
+    const val   = (valEl?.dataset?.raw || valEl?.textContent?.trim() || "").replace(/"/g, '""');
+    rows.push(`"${label}","${val}"`);
+  });
+  navigator.clipboard.writeText(rows.join("\n")).then(() =>
+    setStatus("✅ CSV copied to clipboard!", "ok")
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FIELD MAP
+═══════════════════════════════════════════════════════════════ */
+const FIELD_MAP = {
+  file_type:"f-file-type", settlement_date:"f-settlement-date",
+  closing_date:"f-closing-date", possession_date:"f-possession-date",
+  disbursement_date:"f-disbursement-date", sales_price:"f-sales-price",
+  earnest_money:"f-earnest-money", earnest_money_holder:"f-emd-holder",
+  loan_amount:"f-loan-amount", loan_type:"f-loan-type",
+  interest_rate:"f-interest-rate", loan_term:"f-loan-term",
+  finance_contingency:"f-finance-contingency", inspection_period:"f-inspection-period",
+  personal_property:"f-personal-property",
+  property_address:"f-prop-address", property_city:"f-prop-city",
+  property_state:"f-prop-state", property_zip:"f-prop-zip",
+  property_county:"f-prop-county", property_township:"f-prop-township",
+  parcel_number:"f-parcel-number", legal_description:"f-legal-desc",
+  subdivision:"f-subdivision", lot_block:"f-lot-block",
+  deed_type:"f-deed-type", property_type:"f-prop-type",
+  appraised_value:"f-appraised-value",
+  buyer1_name:"f-buyer1-name", buyer1_address:"f-buyer1-address",
+  buyer1_phone:"f-buyer1-phone", buyer1_email:"f-buyer1-email",
+  buyer1_marital:"f-buyer1-marital",
+  buyer2_name:"f-buyer2-name", buyer2_address:"f-buyer2-address",
+  buyer2_phone:"f-buyer2-phone", buyer2_email:"f-buyer2-email",
+  vesting:"f-vesting",
+  seller1_name:"f-seller1-name", seller1_address:"f-seller1-address",
+  seller1_phone:"f-seller1-phone", seller1_email:"f-seller1-email",
+  seller2_name:"f-seller2-name", seller2_address:"f-seller2-address",
+  dower_release:"f-dower-release", seller_marital:"f-seller-marital",
+  lender_name:"f-lender-name", lender_address:"f-lender-address",
+  loan_officer:"f-loan-officer", loan_officer_phone:"f-loan-officer-phone",
+  loan_number:"f-loan-number", mortgage_type:"f-mortgage-type",
+  down_payment:"f-down-payment",
+  selling_agent:"f-selling-agent", selling_brokerage:"f-selling-brokerage",
+  selling_agent_phone:"f-selling-agent-phone", selling_agent_email:"f-selling-agent-email",
+  listing_agent:"f-listing-agent", listing_brokerage:"f-listing-brokerage",
+  listing_agent_phone:"f-listing-agent-phone", listing_agent_email:"f-listing-agent-email",
+  commission:"f-commission", commission_paid_by:"f-commission-paid-by",
+  ohio_conveyance_fee:"f-conv-fee", conv_fee_paid_by:"f-conv-fee-by",
+  ohio_transfer_tax:"f-transfer-tax", property_disclosure:"f-disclosure-form",
+  radon_disclosure:"f-radon", lead_paint:"f-lead-paint",
+  hoa:"f-hoa", hoa_fee:"f-hoa-fee",
+  special_assessments:"f-special-assessments", survey:"f-survey",
+  closing_cost_credits:"f-closing-credits", home_warranty:"f-home-warranty",
+};
+
+function populateFields(data) {
+  document.querySelectorAll(".field-value").forEach(el => {
+    el.textContent = "—";
+    el.dataset.raw = "";
+    el.className = "field-value";
+  });
+
+  for (const [key, elId] of Object.entries(FIELD_MAP)) {
+    const el  = document.getElementById(elId);
+    if (!el) continue;
+    const val = data[key];
+    if (val && val !== "Not found" && val !== "N/A" && val !== "") {
+      el.textContent = val;
+      el.dataset.raw = val;
+    } else {
+      el.textContent = "Not found";
+      el.classList.add("missing");
+    }
+  }
+
+  // Flags
+  const flagsEl = document.getElementById("f-flags");
+  if (data.flags && data.flags.length > 0) {
+    flagsEl.innerHTML = data.flags.map(f => `<div style="margin-bottom:4px">⚠️ ${f}</div>`).join("");
+  } else {
+    flagsEl.textContent = "No flags identified.";
+  }
+
+  // Auto-calc Ohio conveyance fee if missing
+  if ((!data.ohio_conveyance_fee || data.ohio_conveyance_fee === "Not found") && data.sales_price) {
+    const price = parseFloat(data.sales_price.replace(/[^0-9.]/g, ""));
+    if (!isNaN(price)) {
+      const fee = (price / 1000 * 4).toFixed(2);
+      const el  = document.getElementById("f-conv-fee");
+      el.textContent = `$${parseFloat(fee).toLocaleString("en-US",{minimumFractionDigits:2})} (calc. @ $4/thousand)`;
+      el.dataset.raw = `$${fee}`;
+      el.classList.remove("missing");
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EMAIL + ATTACHMENT READING
+═══════════════════════════════════════════════════════════════ */
+function getEmailBody() {
+  return new Promise((resolve, reject) => {
+    const item = Office.context.mailbox.item;
+    if (!item) { reject(new Error("No email selected.")); return; }
+    item.body.getAsync(Office.CoercionType.Text, r => {
+      r.status === Office.AsyncResultStatus.Succeeded
+        ? resolve(r.value || "")
+        : reject(new Error("Could not read email body: " + r.error?.message));
+    });
+  });
+}
+
+function getEmailSubject() {
+  return Office.context.mailbox.item?.subject || "";
+}
+
+function getAttachments() {
+  return new Promise(resolve => {
+    const item = Office.context.mailbox.item;
+    if (!item || !item.attachments || item.attachments.length === 0) { resolve([]); return; }
+
+    const atts = item.attachments.filter(a => !a.isInline);
+    if (atts.length === 0) { resolve([]); return; }
+
+    if (typeof item.getAttachmentContentAsync !== "function") {
+      resolve(atts.map(a => ({ name: a.name, contentType: a.contentType, base64: null,
+        note: "Content unavailable (upgrade to Microsoft 365 for full attachment reading)" })));
+      return;
+    }
+
+    const results = [];
+    let pending = atts.length;
+    atts.forEach(att => {
+      item.getAttachmentContentAsync(att.id, r => {
+        results.push(r.status === Office.AsyncResultStatus.Succeeded
+          ? { name: att.name, contentType: att.contentType,
+              base64: r.value.content, format: r.value.format, size: att.size }
+          : { name: att.name, contentType: att.contentType, base64: null, size: att.size,
+              note: "Could not read: " + (r.error?.message || "unknown") });
+        if (--pending === 0) resolve(results);
+      });
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAUDE API
+═══════════════════════════════════════════════════════════════ */
+const SYSTEM_PROMPT = `You are a specialized data extraction assistant for an Ohio title insurance agency using SoftPro closing software.
+Extract every relevant field needed to open a new SoftPro order from the provided purchase contract email and attachments.
+
+OHIO-SPECIFIC RULES:
+- Deed types: General Warranty (default), Limited Warranty, Fiduciary, or Quit Claim
+- Ohio Conveyance Fee: $4.00 per $1,000 of purchase price (ORC § 319.54)
+- Seller's Residential Property Disclosure Form required (ORC § 5302.30)
+- Dower release required if seller is married (ORC § 2103.02) — note spouse name if visible
+- Title examined against OSBA Standards of Title Examination
+- Lead paint disclosure required for homes built before 1978
+- Radon disclosure common in Ohio
+- Note any Special Assessments surviving closing
+- Finance contingency deadlines are critical — extract exact dates
+
+RULES:
+- Return ONLY a raw JSON object — no markdown, no explanation, no code fences
+- Use "Not found" for any field you cannot determine from the documents
+- Never guess or fabricate — only extract what is actually present
+
+Return this exact JSON structure:
+{"file_type":"Purchase","settlement_date":"","closing_date":"","possession_date":"","disbursement_date":"","sales_price":"","earnest_money":"","earnest_money_holder":"","loan_amount":"","loan_type":"","interest_rate":"","loan_term":"","finance_contingency":"","inspection_period":"","personal_property":"","property_address":"","property_city":"","property_state":"OH","property_zip":"","property_county":"","property_township":"","parcel_number":"","legal_description":"","subdivision":"","lot_block":"","deed_type":"","property_type":"","appraised_value":"","buyer1_name":"","buyer1_address":"","buyer1_phone":"","buyer1_email":"","buyer1_marital":"","buyer2_name":"","buyer2_address":"","buyer2_phone":"","buyer2_email":"","vesting":"","seller1_name":"","seller1_address":"","seller1_phone":"","seller1_email":"","seller2_name":"","seller2_address":"","dower_release":"","seller_marital":"","lender_name":"","lender_address":"","loan_officer":"","loan_officer_phone":"","loan_number":"","mortgage_type":"","down_payment":"","selling_agent":"","selling_brokerage":"","selling_agent_phone":"","selling_agent_email":"","listing_agent":"","listing_brokerage":"","listing_agent_phone":"","listing_agent_email":"","commission":"","commission_paid_by":"","ohio_conveyance_fee":"","conv_fee_paid_by":"","ohio_transfer_tax":"","property_disclosure":"","radon_disclosure":"","lead_paint":"","hoa":"","hoa_fee":"","special_assessments":"","survey":"","closing_cost_credits":"","home_warranty":"","flags":[]}`;
+
+async function callClaudeAPI(apiKey, subject, body, attachments) {
+  const userContent = [];
+
+  // Binary documents first (PDFs, images)
+  attachments.forEach((att, idx) => {
+    if (!att.base64 || !att.contentType) return;
+    const ct = att.contentType.toLowerCase();
+    if (ct.includes("pdf")) {
+      userContent.push({ type:"document",
+        source:{ type:"base64", media_type:"application/pdf", data:att.base64 },
+        title: att.name });
+    } else if (ct.includes("image")) {
+      const mt = ct.includes("png") ? "image/png" : ct.includes("gif") ? "image/gif" : "image/jpeg";
+      userContent.push({ type:"image", source:{ type:"base64", media_type:mt, data:att.base64 } });
+    }
+  });
+
+  // Text parts (email body + non-binary attachments)
+  let textBlock = `EMAIL SUBJECT: ${subject}\n\nEMAIL BODY:\n${body || "(empty)"}`;
+  attachments.forEach(att => {
+    if (att.note) {
+      textBlock += `\n\n--- ATTACHMENT: ${att.name} (${att.note}) ---`;
+    } else if (att.base64 && att.contentType && !att.contentType.toLowerCase().match(/pdf|image/)) {
+      try {
+        const decoded = atob(att.base64);
+        textBlock += `\n\n--- ATTACHMENT: ${att.name} ---\n${decoded}\n---`;
+      } catch {
+        textBlock += `\n\n--- ATTACHMENT: ${att.name} (binary, unreadable) ---`;
+      }
+    }
+  });
+
+  userContent.push({ type:"text", text: textBlock });
+  userContent.push({ type:"text", text:"\n\nExtract all SoftPro fields. Return only the JSON object." });
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2000,
+      system: SYSTEM_PROMPT,
+      messages: [{ role:"user", content: userContent }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    // Friendly error messages
+    if (response.status === 401) throw new Error("Invalid API key. Check it at console.anthropic.com.");
+    if (response.status === 429) throw new Error("Rate limit hit. Wait a moment and try again.");
+    if (response.status === 400) throw new Error("Request error (400). The email may be too large.");
+    throw new Error(`API error ${response.status}: ${err}`);
+  }
+
+  const result  = await response.json();
+  const rawText = result.content.map(c => c.type==="text" ? c.text : "").join("").trim();
+  const cleaned = rawText.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```$/i,"").trim();
+  return JSON.parse(cleaned);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN FLOW
+═══════════════════════════════════════════════════════════════ */
+async function runExtraction() {
+  const apiKey = document.getElementById("api-key-input").value.trim();
+  if (!apiKey || !apiKey.startsWith("sk-ant-")) {
+    setStatus("⚠️ Enter your Anthropic API key above first.", "error");
+    document.getElementById("api-key-input").focus();
+    return;
+  }
+
+  const btn = document.getElementById("extract-btn");
+  btn.disabled = true;
+  document.getElementById("placeholder").style.display = "block";
+  document.getElementById("results").style.display     = "none";
+  setProgress(0, "Starting…");
+  setStatus("Working…");
+
+  try {
+    setProgress(10, "Reading email…");
+    const subject = getEmailSubject();
+    const body    = await getEmailBody();
+
+    setProgress(30, "Reading attachments…");
+    let attachments = [];
+    try { attachments = await getAttachments(); } catch(e) { /* fall through */ }
+
+    const attNames = attachments.map(a => a.name).join(", ") || "none";
+    document.getElementById("source-summary").textContent =
+      `${attachments.length} attachment(s): ${attNames}`;
+
+    setProgress(55, `Sending to Claude AI…`);
+    const extracted = await callClaudeAPI(apiKey, subject, body, attachments);
+
+    setProgress(90, "Filling in fields…");
+    populateFields(extracted);
+
+    setProgress(100, "Done!");
+    setTimeout(() => setProgress(null), 700);
+    document.getElementById("placeholder").style.display = "none";
+    document.getElementById("results").style.display     = "flex";
+    setStatus("✅ Done — click any field to copy it.", "ok");
+
+  } catch(err) {
+    setProgress(null);
+    setStatus("❌ " + err.message, "error");
+    console.error("[SoftPro]", err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
