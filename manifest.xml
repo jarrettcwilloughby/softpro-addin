@@ -2,7 +2,7 @@
 <!--
   ============================================================
   BEFORE SIDELOADING: Replace every instance of
-    YOUR-GITHUB-USERNAME
+    jarrettcwilloughby
   with your actual GitHub username (e.g. "jsmith").
   ============================================================
 -->
@@ -19,12 +19,12 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="SoftPro Field Extractor"/>
   <Description DefaultValue="Reads purchase contract emails and attachments, then extracts all SoftPro data fields for Ohio title closings."/>
-  <IconUrl DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin/icon-64.png"/>
-  <HighResolutionIconUrl DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin/icon-128.png"/>
-  <SupportUrl DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin"/>
+  <IconUrl DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin/icon-64.png"/>
+  <HighResolutionIconUrl DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin/icon-128.png"/>
+  <SupportUrl DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin"/>
 
   <AppDomains>
-    <AppDomain>https://YOUR-GITHUB-USERNAME.github.io</AppDomain>
+    <AppDomain>https://jarrettcwilloughby.github.io</AppDomain>
     <AppDomain>https://api.anthropic.com</AppDomain>
   </AppDomains>
 
@@ -41,7 +41,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin/taskpane.html"/>
+        <SourceLocation DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin/taskpane.html"/>
         <RequestedHeight>650</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -92,13 +92,13 @@
 
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Commands.Url" DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin/commands.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://YOUR-GITHUB-USERNAME.github.io/softpro-addin/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://jarrettcwilloughby.github.io/softpro-addin/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="SoftPro"/>
